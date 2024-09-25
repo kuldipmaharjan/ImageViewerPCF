@@ -1,9 +1,6 @@
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import {ImageViewerWrapper, ImageViewerWrapperProps} from './src/components/imageViewerWrapper';
-
-import ImageGallery from  'react-image-gallery';
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 
 export class ImageViewer implements ComponentFramework.StandardControl<IInputs, IOutputs> {
@@ -29,10 +26,12 @@ export class ImageViewer implements ComponentFramework.StandardControl<IInputs, 
     {
         // Add control initialization code
         this.container = container;
+        console.log(container); 
 
 		this.imageViewerWrapperProps = {
 			pcfContext: context
 		}
+        console.log("init done");
     }
 
 
@@ -46,10 +45,16 @@ export class ImageViewer implements ComponentFramework.StandardControl<IInputs, 
 		//ReactDOM.unmountComponentAtNode(this.container);
 		//ReactDOM.render(React.createElement(ImageViewerWrapper, this.imageViewerWrapperProps), this.container);
 
-        const container = document.getElementById('app');
-        const root = createRoot(this.container); // createRoot(container!) if you use TypeScript
-        root.unmount();
-        root.render(React.createElement(ImageViewerWrapper, this.imageViewerWrapperProps));
+        //const container = document.getElementById('app');
+        try {
+            const root = createRoot(this.container); // createRoot(container!) if you use TypeScript
+            //root.unmount();
+            root.render(React.createElement(ImageViewerWrapper, this.imageViewerWrapperProps));
+        } catch (error) {
+            console.error(error);
+        }
+       
+        console.log("updateView done");
 
     }
 

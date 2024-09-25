@@ -11,6 +11,7 @@
     <Name>ImageViewerPCF</Name>
     <ProjectGuid>53307d32-8ccb-4569-acaf-dea507951869</ProjectGuid>
     <OutputPath>$(MSBuildThisFileDirectory)out\controls</OutputPath>
+    <PcfBuildMode>production</PcfBuildMode>
   </PropertyGroup>
 
   <PropertyGroup>
