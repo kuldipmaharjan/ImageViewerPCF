@@ -5,8 +5,10 @@ import ImageGallery from 'react-image-gallery'
 //import { patchFileContent } from '../helpers/dynamicsData'
 import { IconButton } from '@fluentui/react'
 import { imageViewerData, imageRawData } from '../types/imageViewer'
-//import { DropArgument } from 'net'
 import { testImages } from '../test/imgData'
+import { UploadDropzone } from '@bytescale/upload-widget-react'
+
+import ScaleLoader from "react-spinners/ScaleLoader";
 
 export type ImageViewerWrapperProps = {
     pcfContext: ComponentFramework.Context<IInputs>
@@ -25,6 +27,11 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     const [imageList, setImageList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
     const currentIndex = useRef(0)
+    const currentUIState = useRef("loader")
+
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [filenames, setNames] = useState([]);
 
     useEffect(() => {
         console.log("Get raw file from CRM field");
@@ -48,11 +55,16 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             console.log(element)
         })
 
+        if (tempList.length == 0) {
+            currentUIState.current = "uploader"
+        }
+
     }, [imageRawData])
 
     useEffect(() => {
         console.log("imageList updated")
         console.log(imageList)
+        
     }, [imageList])
 
     const getFileContent = (download: boolean) => {
@@ -109,6 +121,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         const base64ToString = atob(JSON.parse(req.responseText).value).toString()
                         console.log(base64ToString)
                         setImageRawData(JSON.parse(base64ToString))
+                        currentUIState.current = "viewer"
                     }
                 } else {
                     const error = JSON.parse(this.response).error
@@ -217,33 +230,101 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                 console.error("FileReader event target is null.");
             }
         });
+        //reader.fileName = files[0].name
         reader.readAsDataURL(files[0])
     }
 
+
+
+    const options = {
+        apiKey: "free",
+        maxFileCount: 10,
+
+        // When `showFinishButton: false` (default) combined with `multi: false` (default) or `maxFileCount: 1`: 
+        // - Modals will close immediately after the upload completes.
+        // - Dropzones will allow the user to keep removing/re-uploading the file. 
+        //   Use `onUpdate` for dropzones to handle each upload, and to close the dropzone if required.
+        showFinishButton: true,
+
+        styles: {
+            display: "block",
+            colors: {
+                primary: "#949494"
+            }
+        }
+    }
+
+
+    const [files, setFiles] = useState([])
+
+    // @ts-expect-error test
+    const MyDropzone = ({ setFiles }) =>
+        <UploadDropzone options={options}
+            onUpdate={({ uploadedFiles }) =>
+                console.log(`Files: ${uploadedFiles
+                    .map(x => x.fileUrl)
+                    .join("\n")}`)
+            }
+            onComplete={setFiles}
+            width="80vh"
+            height="80vh" />
+
+
+
+
     return (
-        <section style={{ margin: "0 auto", width: "100%", height: "800px", display: 'inline-block' }}
+        <section style={{ margin: "0 auto", width: "100%", height: "100%", display: 'inline-block' }}
             onDragOver={dragOver}
             onDragEnter={dragEnter}
             onDragLeave={dragLeave}
             onDrop={fileDrop}>
 
-            <ImageGallery
-                items={imageList}
-                lazyLoad={false}
-                showThumbnails={true}
-                showFullscreenButton={true}
-                showPlayButton={false}
-                showBullets={true}
-                showIndex={true}
-                infinite={true}
-                slideDuration={500}
-                slideInterval={500}
-                onSlide={(index: number) => currentIndex.current = index}
-            />
-            <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
-            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
-                
-            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'red', zIndex: 1000 } } }} onClick={() => { console.log(`Delete All`); patchFileContent("", "delete"); }} />
+            {
+                currentUIState.current == "uploader" ?
+                    <MyDropzone setFiles={setFiles} />
+                    : null
+            }
+
+            {
+                currentUIState.current == "loader" ?
+                    <ScaleLoader
+                       style={{ marginTop: "25vh", display: "block"}}
+                        aria-label="Loading Spinner"
+                        data-testid="loader"
+                    />
+                    : null
+            }
+
+            {
+                currentUIState.current == "viewer" ?
+                    <ImageGallery
+                        items={imageList}
+                        lazyLoad={false}
+                        showThumbnails={true}
+                        showFullscreenButton={true}
+                        showPlayButton={false}
+                        showBullets={true}
+                        showIndex={true}
+                        infinite={true}
+                        slideDuration={500}
+                        slideInterval={500}
+                        onSlide={(index: number) => currentIndex.current = index}
+                    />
+                    : null
+            }
+
+            <br></br>
+
+            {
+                currentUIState.current == "viewer" || true?
+                <>
+                    <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000} } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
+                    <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on`); currentUIState.current = "uploader"; }} /> 
+                    <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
+                </>
+            
+            : null
+            }
         </section>
     );
 }
