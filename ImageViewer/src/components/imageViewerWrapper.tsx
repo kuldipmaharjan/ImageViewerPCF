@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import { IInputs } from "../../generated/ManifestTypes"
 import ImageGallery from 'react-image-gallery'
-import { patchFileContent } from '../helpers/dynamicsData'
+//import { patchFileContent } from '../helpers/dynamicsData'
 import { IconButton } from '@fluentui/react'
 import { imageViewerData, imageRawData } from '../types/imageViewer'
 //import { DropArgument } from 'net'
@@ -24,12 +24,13 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     //const [isViewerOpen, setIsViewerOpen] = useState(false);
     const [imageList, setImageList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
+    const currentIndex = useRef(0)
 
     useEffect(() => {
         console.log("Get raw file from CRM field");
-        //getFileContent(false);  //comment for local test
+        getFileContent(false);  //comment for local test
 
-        setImageList([...testImages])  //for local test
+        //setImageList([...testImages])  //for local test
     }, []);
 
     useEffect(() => {
@@ -56,7 +57,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
 
     const getFileContent = (download: boolean) => {
         //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org3bf05eeb.crm.dynamics.com/api/data/v9.2/accounts(" + recordId + ")/km_rawdata";
+        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
 
         const req = new XMLHttpRequest();
         req.open("GET", url);
@@ -104,7 +105,8 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                     else {
                         console.log("download " + download)
                         console.log("status: " + this.status)
-                        const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
+                        //const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
+                        const base64ToString = atob(JSON.parse(req.responseText).value).toString()
                         console.log(base64ToString)
                         setImageRawData(JSON.parse(base64ToString))
                     }
@@ -125,15 +127,19 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
      * @param dataFile content of the file in base64
      */
 
-    const patchFileContent = (data: string) => {
+    const patchFileContent = (data: string, action: string) => {
         console.log("patchFileContent");
         //append dropped file 
 
         //let base64ToString = Buffer.from(imageRawData, "base64").toString();
         let currentData = [...imageRawData]
-        if (data != "") {
+        if (data != "" && action === "add") {
             console.log(currentData)
             currentData.push({ name: "", type: "", content: data })
+            console.log(currentData)
+        }
+        else if (action === "delete") {
+            currentData.splice(currentIndex.current, 1)
             console.log(currentData)
         }
         else {
@@ -142,7 +148,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
 
 
         //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org3bf05eeb.crm.dynamics.com/api/data/v9.2/accounts(" + recordId + ")/km_rawdata";
+        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
 
         const req = new XMLHttpRequest()
         req.open("PATCH", url)
@@ -167,6 +173,15 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
 
         //req.send(JSON.stringify([{name: "", type: "", content: ""}]));
         req.send(JSON.stringify(currentData));
+    }
+
+    const deleteImage = (index: number) => {
+        console.log("Delete Image")
+        console.log(index)
+        const currentData = [...imageRawData]
+        currentData.splice(index, 1)
+        console.log(currentData)
+        patchFileContent(JSON.stringify(currentData), "delete")
     }
 
 
@@ -197,7 +212,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             console.log("completed reading file")
             if (event.target) {
                 console.log(event.target.result);
-                patchFileContent(event.target.result as string);
+                patchFileContent(event.target.result as string, "add");
             } else {
                 console.error("FileReader event target is null.");
             }
@@ -213,7 +228,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             onDrop={fileDrop}>
 
             <ImageGallery
-                items={testImages}
+                items={imageList}
                 lazyLoad={false}
                 showThumbnails={true}
                 showFullscreenButton={true}
@@ -223,9 +238,12 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                 infinite={true}
                 slideDuration={500}
                 slideInterval={500}
+                onSlide={(index: number) => currentIndex.current = index}
             />
             <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
-            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Delete Clicked"); patchFileContent(""); }} />
+            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
+                
+            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'red', zIndex: 1000 } } }} onClick={() => { console.log(`Delete All`); patchFileContent("", "delete"); }} />
         </section>
     );
 }

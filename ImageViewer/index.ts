@@ -31,7 +31,7 @@ export class ImageViewer implements ComponentFramework.StandardControl<IInputs, 
 		this.imageViewerWrapperProps = {
 			pcfContext: context
 		}
-        console.log("init done");
+        console.log("init done 1");
     }
 
 
