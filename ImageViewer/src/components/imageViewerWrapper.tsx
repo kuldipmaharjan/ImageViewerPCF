@@ -6,9 +6,10 @@ import ImageGallery from 'react-image-gallery'
 import { IconButton } from '@fluentui/react'
 import { imageViewerData, imageRawData } from '../types/imageViewer'
 import { testImages } from '../test/imgData'
-import { UploadDropzone } from '@bytescale/upload-widget-react'
+import { useDropzone } from 'react-dropzone'
 
 import ScaleLoader from "react-spinners/ScaleLoader";
+import { blob } from 'stream/consumers'
 
 export type ImageViewerWrapperProps = {
     pcfContext: ComponentFramework.Context<IInputs>
@@ -27,11 +28,12 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     const [imageList, setImageList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
     const currentIndex = useRef(0)
-    const currentUIState = useRef("loader")
-
+    const [currentUIState, setCurrentUIState] = useState("loader");
 
     const inputRef = useRef<HTMLInputElement>(null);
     const [filenames, setNames] = useState([]);
+
+
 
     useEffect(() => {
         console.log("Get raw file from CRM field");
@@ -47,7 +49,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         const tempList = [] as Array<imageViewerData>
         Array.from(imageRawData).forEach((element: imageRawData) => {
             console.log(element)
-            tempList.push({ original: element.content, thumbnail: element.content })
+            tempList.push({ original: element.content, thumbnail: element.content, name: "" })
         })
 
         setImageList([...tempList])
@@ -55,16 +57,16 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             console.log(element)
         })
 
-        if (tempList.length == 0) {
-            currentUIState.current = "uploader"
-        }
+        //if (tempList.length == 0) {
+         //   currentUIState.current = "uploader"
+        //}
 
     }, [imageRawData])
 
     useEffect(() => {
         console.log("imageList updated")
         console.log(imageList)
-        
+
     }, [imageList])
 
     const getFileContent = (download: boolean) => {
@@ -85,7 +87,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                 if (this.status === 200 || this.status === 204) {
                     if (download) {
                         console.log("Downloading")
-                        const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
+                        const base64ToString = atob(JSON.parse(req.responseText).value).toString()
                         console.log(JSON.parse(base64ToString))
 
                         const dataList = JSON.parse(base64ToString)
@@ -120,8 +122,14 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         //const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
                         const base64ToString = atob(JSON.parse(req.responseText).value).toString()
                         console.log(base64ToString)
-                        setImageRawData(JSON.parse(base64ToString))
-                        currentUIState.current = "viewer"
+                        const imgDataList = JSON.parse(base64ToString)
+                        setImageRawData(imgDataList)
+                        if (imgDataList.length == 0) {
+                            setCurrentUIState("uploader")
+                        }
+                        else {
+                            setCurrentUIState("viewer")
+                        }
                     }
                 } else {
                     const error = JSON.parse(this.response).error
@@ -197,134 +205,88 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         patchFileContent(JSON.stringify(currentData), "delete")
     }
 
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        console.log(acceptedFiles);
 
-    const dragOver = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
-    }
-
-    const dragEnter = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
-    }
-
-    const dragLeave = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
-    }
-
-    const fileDrop = (e: ReactDragEvent<HTMLElement>) => {
-        console.log("Filedrop")
-        e.preventDefault()
-        const files = e.dataTransfer?.files
-        if (!files) {
-            console.error("No files were dropped.");
-            return;
-        }
-        console.log(files)
-
-        const reader = new FileReader();
-        reader.addEventListener('load', (event: ProgressEvent<FileReader>) => {
-            console.log("completed reading file")
-            if (event.target) {
-                console.log(event.target.result);
-                patchFileContent(event.target.result as string, "add");
-            } else {
-                console.error("FileReader event target is null.");
-            }
+        acceptedFiles.forEach(file => {
+            // Do something with the files
+            const reader = new FileReader();
+            reader.addEventListener('load', (event: ProgressEvent<FileReader>) => {
+                console.log("completed reading file")
+                if (event.target) {
+                    console.log(event.target.result);
+                    patchFileContent(event.target.result as string, "add");
+                } else {
+                    console.error("FileReader event target is null.");
+                }
+            });
+            reader.readAsDataURL(file)
+            //reader.fileName = files[0].name
         });
-        //reader.fileName = files[0].name
-        reader.readAsDataURL(files[0])
-    }
 
+    }, [])
 
-
-    const options = {
-        apiKey: "free",
-        maxFileCount: 10,
-
-        // When `showFinishButton: false` (default) combined with `multi: false` (default) or `maxFileCount: 1`: 
-        // - Modals will close immediately after the upload completes.
-        // - Dropzones will allow the user to keep removing/re-uploading the file. 
-        //   Use `onUpdate` for dropzones to handle each upload, and to close the dropzone if required.
-        showFinishButton: true,
-
-        styles: {
-            display: "block",
-            colors: {
-                primary: "#949494"
-            }
-        }
-    }
-
-
-    const [files, setFiles] = useState([])
-
-    // @ts-expect-error test
-    const MyDropzone = ({ setFiles }) =>
-        <UploadDropzone options={options}
-            onUpdate={({ uploadedFiles }) =>
-                console.log(`Files: ${uploadedFiles
-                    .map(x => x.fileUrl)
-                    .join("\n")}`)
-            }
-            onComplete={setFiles}
-            width="80vh"
-            height="80vh" />
-
-
-
+    const { getRootProps, getInputProps, open } = useDropzone({
+        // Disable click and keydown behavior
+        noClick: true,
+        noKeyboard: true,
+        onDrop
+    });
 
     return (
-        <section style={{ margin: "0 auto", width: "100%", height: "100%", display: 'inline-block' }}
-            onDragOver={dragOver}
-            onDragEnter={dragEnter}
-            onDragLeave={dragLeave}
-            onDrop={fileDrop}>
-
+        <>
             {
-                currentUIState.current == "uploader" ?
-                    <MyDropzone setFiles={setFiles} />
+                currentUIState == "viewer"?
+                    <div style={{float: 'right'}}>
+                        <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
+                        <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on....`); setCurrentUIState("uploader"); }} />
+                        <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
+                    </div>
                     : null
             }
+            <section style={{ margin: "0 auto", width: "100%", height: "100%", display: 'inline-block' }}>
+                {
+                    currentUIState == "uploader" ?
+                        <div {...getRootProps({ className: 'dropzone' })}>
+                            <input {...getInputProps()} />
+                            <p>Drag 'n' drop some files here</p>
+                            <button type="button" onClick={open}>
+                                Open File Dialog
+                            </button>
+                        </div>
 
-            {
-                currentUIState.current == "loader" ?
-                    <ScaleLoader
-                       style={{ marginTop: "25vh", display: "block"}}
-                        aria-label="Loading Spinner"
-                        data-testid="loader"
-                    />
-                    : null
-            }
+                        : null
+                }
 
-            {
-                currentUIState.current == "viewer" ?
-                    <ImageGallery
-                        items={imageList}
-                        lazyLoad={false}
-                        showThumbnails={true}
-                        showFullscreenButton={true}
-                        showPlayButton={false}
-                        showBullets={true}
-                        showIndex={true}
-                        infinite={true}
-                        slideDuration={500}
-                        slideInterval={500}
-                        onSlide={(index: number) => currentIndex.current = index}
-                    />
-                    : null
-            }
+                {
+                    currentUIState == "loader" ?
+                        <ScaleLoader
+                            style={{ marginTop: "25vh", display: "block" }}
+                            aria-label="Loading Spinner"
+                            data-testid="loader"
+                        />
+                        : null
+                }
 
-            <br></br>
-
-            {
-                currentUIState.current == "viewer" || true?
-                <>
-                    <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000} } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
-                    <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on`); currentUIState.current = "uploader"; }} /> 
-                    <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
-                </>
-            
-            : null
-            }
-        </section>
+                {
+                    currentUIState == "viewer"?
+                        <ImageGallery
+                            items={imageList}
+                            lazyLoad={false}
+                            showThumbnails={true}
+                            showFullscreenButton={true}
+                            showPlayButton={false}
+                            showBullets={true}
+                            showIndex={true}
+                            infinite={true}
+                            slideDuration={200}
+                            slideInterval={500}
+                            onSlide={(index: number) => currentIndex.current = index}
+                        />
+                        : null
+                }
+            </section>
+        </>
+        
     );
 }

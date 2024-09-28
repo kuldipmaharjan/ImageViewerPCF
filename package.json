@@ -13,11 +13,11 @@
     "refreshTypes": "pcf-scripts refreshTypes"
   },
   "dependencies": {
-    "@bytescale/upload-widget-react": "^4.19.0",
     "@fluentui/react": "^8.120.9",
     "buffer": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
     "react-file-drop": "^3.1.6",
     "react-image-gallery": "^1.3.0",
     "react-spinners": "^0.14.1"

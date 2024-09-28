@@ -1,4 +1,5 @@
 export type imageViewerData = {
+    name: string;
     original: string;
     thumbnail: string;
 }
