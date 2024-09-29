@@ -1,15 +1,13 @@
 import * as React from 'react'
-import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import { IInputs } from "../../generated/ManifestTypes"
+import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import ImageGallery from 'react-image-gallery'
-//import { patchFileContent } from '../helpers/dynamicsData'
 import { IconButton } from '@fluentui/react'
 import { imageViewerData, imageRawData } from '../types/imageViewer'
-import { testImages } from '../test/imgData'
-import { useDropzone } from 'react-dropzone'
-
 import ScaleLoader from "react-spinners/ScaleLoader";
-import { blob } from 'stream/consumers'
+import { useDropzone } from 'react-dropzone'
+import { getFileContent, patchFileContent } from '../helpers/dynamicsData'
+import { testImages } from '../test/imgData'
 
 export type ImageViewerWrapperProps = {
     pcfContext: ComponentFramework.Context<IInputs>
@@ -19,30 +17,28 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     console.log(pcfContext)
     const igProps = pcfContext.parameters.imageViewerProps.raw || ""
 
-    // @ts-expect-error test
+    // @ts-expect-error necessity
     const recordId = pcfContext.page.entityId
     //const crmUrl = pcfContext.page.getClientUrl()
 
-    //const [currentImage, setCurrentImage] = useState(0);
-    //const [isViewerOpen, setIsViewerOpen] = useState(false);
-    const [imageList, setImageList] = useState([] as Array<imageViewerData>)
+    const [imageViewerList, setImageViewerList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
+    const [currentUIState, setCurrentUIState] = useState("viewer");
+    
+    const hasPageBeenRendered = useRef({ imageRawData: false, imageViewerList: false })
     const currentIndex = useRef(0)
-    const [currentUIState, setCurrentUIState] = useState("loader");
-
-    const inputRef = useRef<HTMLInputElement>(null);
-    const [filenames, setNames] = useState([]);
-
-
 
     useEffect(() => {
-        console.log("Get raw file from CRM field");
-        getFileContent(false);  //comment for local test
-
-        //setImageList([...testImages])  //for local test
+        getFileContent(recordId, setCurrentUIState, setImageRawData);
+        //setImageViewerList([...testImages] as imageViewerData[])  //comment actual data source and uncomment this line to use test data
     }, []);
 
     useEffect(() => {
+        if (!hasPageBeenRendered.current.imageRawData) {
+            hasPageBeenRendered.current.imageRawData = true
+            return
+        }
+
         console.log("imageRawData updated")
         console.log(imageRawData)
 
@@ -52,157 +48,42 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             tempList.push({ original: element.content, thumbnail: element.content, name: "" })
         })
 
-        setImageList([...tempList])
-        imageList.forEach((element: imageViewerData) => {
-            console.log(element)
-        })
-
-        //if (tempList.length == 0) {
-         //   currentUIState.current = "uploader"
-        //}
-
+        setImageViewerList([...tempList])
+        setCurrentUIState("viewer")
     }, [imageRawData])
 
     useEffect(() => {
-        console.log("imageList updated")
-        console.log(imageList)
-
-    }, [imageList])
-
-    const getFileContent = (download: boolean) => {
-        //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
-
-        const req = new XMLHttpRequest();
-        req.open("GET", url);
-        //req.setRequestHeader("x-ms-file-name", "test.txt");
-        req.setRequestHeader("Content-Type", "application/octet-stream")
-        req.setRequestHeader("Content-Range", "0-4095/8192")
-        req.setRequestHeader("Accept-Encoding", "gzip, deflate")
-        req.setRequestHeader("OData-MaxVersion", "4.0")
-        req.setRequestHeader("OData-Version", "4.0")
-        req.onreadystatechange = function () {
-            if (this.readyState === 4) {
-                req.onreadystatechange = null;
-                if (this.status === 200 || this.status === 204) {
-                    if (download) {
-                        console.log("Downloading")
-                        const base64ToString = atob(JSON.parse(req.responseText).value).toString()
-                        console.log(JSON.parse(base64ToString))
-
-                        const dataList = JSON.parse(base64ToString)
-                        dataList.forEach((element: { content: string; }) => {
-                            const downloadLink = document.createElement("a");
-                            downloadLink.href = element?.content.toString();
-                            downloadLink.download = "test.jpg";
-                            downloadLink.click();
-                        });
-                        //const linkSource = `data:image;base64,${base64Data}`;
-
-                        /*
-                            // Parameters:
-                            // contentType: The content type of your file. 
-                            //              its like application/pdf or application/msword or image/jpeg or
-                            //              image/png and so on
-                            // base64Data: Its your actual base64 data
-                            // fileName: Its the file name of the file which will be downloaded. 
-
-                            function downloadBase64File(contentType, base64Data, fileName) {
-                                const linkSource = `data:${contentType};base64,${base64Data}`;
-                                const downloadLink = document.createElement("a");
-                                downloadLink.href = linkSource;
-                                downloadLink.download = fileName;
-                                downloadLink.click();
-                            }
-                        */
-                    }
-                    else {
-                        console.log("download " + download)
-                        console.log("status: " + this.status)
-                        //const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
-                        const base64ToString = atob(JSON.parse(req.responseText).value).toString()
-                        console.log(base64ToString)
-                        const imgDataList = JSON.parse(base64ToString)
-                        setImageRawData(imgDataList)
-                        if (imgDataList.length == 0) {
-                            setCurrentUIState("uploader")
-                        }
-                        else {
-                            setCurrentUIState("viewer")
-                        }
-                    }
-                } else {
-                    const error = JSON.parse(this.response).error
-                    console.log("Error : " + error.message)
-                }
-            }
-        };
-        req.send()
-    }
-
-
-    /**
-     * Patch the record containing the file field with the file to push
-     * @param recordId record to be patched
-     * @param fileName name of the file which is pushed
-     * @param dataFile content of the file in base64
-     */
-
-    const patchFileContent = (data: string, action: string) => {
-        console.log("patchFileContent");
-        //append dropped file 
-
-        //let base64ToString = Buffer.from(imageRawData, "base64").toString();
-        let currentData = [...imageRawData]
-        if (data != "" && action === "add") {
-            console.log(currentData)
-            currentData.push({ name: "", type: "", content: data })
-            console.log(currentData)
-        }
-        else if (action === "delete") {
-            currentData.splice(currentIndex.current, 1)
-            console.log(currentData)
-        }
-        else {
-            currentData = []
+        if (!hasPageBeenRendered.current.imageViewerList) {
+            hasPageBeenRendered.current.imageViewerList = true
+            return
         }
 
+        console.log("imageViewerList updated")
+        console.log(imageViewerList)
 
-        //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
+    }, [imageViewerList])
 
-        const req = new XMLHttpRequest()
-        req.open("PATCH", url)
-        req.setRequestHeader("x-ms-file-name", "rawIMG.txt")
-        req.setRequestHeader("Content-Type", "application/octet-stream")
-        req.setRequestHeader("Content-Range", "0-4095/8192")
-        req.setRequestHeader("Accept-Encoding", "gzip, deflate")
-        req.setRequestHeader("OData-MaxVersion", "4.0")
-        req.setRequestHeader("OData-Version", "4.0")
-        req.onreadystatechange = function () {
-            if (this.readyState === 4) {
-                req.onreadystatechange = null;
-                if (this.status === 200 || this.status === 204) {
-                    console.log("File Upload Done.")
-                    getFileContent(false)
-                } else {
-                    const error = JSON.parse(this.response).error
-                    console.log("Error : " + error.message)
-                }
-            }
-        };
-
-        //req.send(JSON.stringify([{name: "", type: "", content: ""}]));
-        req.send(JSON.stringify(currentData));
+    
+    const appendImage = (imagedata: string) => {
+        //setCurrentUIState("loader")
+        console.log(`[ImageViewerPCF] Append Image with data ${imagedata}`)
+        
+        const updatedRawData = [...imageRawData]
+        updatedRawData.push({ name: "", type: "", content: imagedata })
+        console.log(updatedRawData)
+        patchFileContent(recordId, updatedRawData)
+        setImageRawData(updatedRawData)
     }
 
     const deleteImage = (index: number) => {
-        console.log("Delete Image")
-        console.log(index)
-        const currentData = [...imageRawData]
-        currentData.splice(index, 1)
-        console.log(currentData)
-        patchFileContent(JSON.stringify(currentData), "delete")
+        setCurrentUIState("loader")
+        console.log(`[ImageViewerPCF] Delete Image at index ${index}`)
+        const updatedRawData = [...imageRawData]
+        updatedRawData.splice(index, 1)
+        console.log(updatedRawData)
+        
+        patchFileContent(recordId, updatedRawData)
+        setImageRawData(updatedRawData)
     }
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -212,10 +93,12 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             // Do something with the files
             const reader = new FileReader();
             reader.addEventListener('load', (event: ProgressEvent<FileReader>) => {
+                event.preventDefault();
                 console.log("completed reading file")
                 if (event.target) {
                     console.log(event.target.result);
-                    patchFileContent(event.target.result as string, "add");
+                    appendImage(event.target.result as string)
+                    //patchFileContent(event.target.result as string, "add");
                 } else {
                     console.error("FileReader event target is null.");
                 }
@@ -226,6 +109,18 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
 
     }, [])
 
+    const dragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    }
+    
+    const dragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    }
+    
+    const dragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    }
+
     const { getRootProps, getInputProps, open } = useDropzone({
         // Disable click and keydown behavior
         noClick: true,
@@ -234,13 +129,19 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     });
 
     return (
-        <>
+        <div  {...getRootProps({ className: 'dropzone' })} 
+        onDragOver={dragOver}
+        onDragEnter={dragEnter} 
+        onDragLeave={dragLeave} 
+        //onDrop={dragLeave}
+        >
             {
                 currentUIState == "viewer"?
                     <div style={{float: 'right'}}>
-                        <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
-                        <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on....`); setCurrentUIState("uploader"); }} />
-                        <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); patchFileContent("", "delete") }} />
+                        <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); /*getFileContent(true);*/ }} />
+                        <input {...getInputProps()} />
+                        <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on....`); open; }} />
+                        <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); deleteImage(currentIndex.current) }} />
                     </div>
                     : null
             }
@@ -271,10 +172,10 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                 {
                     currentUIState == "viewer"?
                         <ImageGallery
-                            items={imageList}
+                            items={imageViewerList}
                             lazyLoad={false}
                             showThumbnails={true}
-                            showFullscreenButton={true}
+                            showFullscreenButton={false}
                             showPlayButton={false}
                             showBullets={true}
                             showIndex={true}
@@ -286,7 +187,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         : null
                 }
             </section>
-        </>
+        </div>
         
     );
 }
