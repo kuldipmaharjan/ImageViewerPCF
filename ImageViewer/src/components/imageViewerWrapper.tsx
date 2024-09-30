@@ -2,7 +2,7 @@ import * as React from 'react'
 import { IInputs } from "../../generated/ManifestTypes"
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import ImageGallery from 'react-image-gallery'
-import { IconButton } from '@fluentui/react'
+import { IconButton, MessageBar, MessageBarType, } from '@fluentui/react'
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { imageViewerData, imageRawData } from '../types/imageViewer'
@@ -120,7 +120,13 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
             const a = await readFile(file)
             tempImageRawData.current.push({ name: file.name, type: file.type, size: file.size, content: a as string })  
              
-            console.log(`tempImageRawData.current ${tempImageRawData.current}`)
+            console.log(`tempImageRawData.current ${tempImageRawData.current as imageRawData[]}`)
+            const totalSize = tempImageRawData.current.map((item) => item.size).reduce((accumulator, currentVal) => {return accumulator + currentVal;},0)
+            console.log(`Total Size: ${totalSize}`)
+            if (totalSize * 4 / 3 > 16000000) { // converting binary to base64 increases the size by 4/3
+                setCurrentUIState("messageBar")
+                return
+            }
 
             if (newTempImageRawDataCount.current == tempImageRawData.current.length) {
                 appendImage(tempImageRawData.current)
@@ -178,6 +184,19 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         onDrop={fileDrop}
         >
             {
+                currentUIState == "messageBar"?
+                <MessageBar
+                    messageBarType={MessageBarType.blocked}
+                    isMultiline={false}
+                    onDismiss={() => setCurrentUIState("viewer")}
+                    dismissButtonAriaLabel="Close"
+                    truncated={true}
+                >
+                <b>The file size is too big.</b> The maximum file size is 16MB. Please try again with a smaller file.
+                </MessageBar>
+                : null
+            }
+            {
                 currentUIState == "viewer"?
                     <div style={{float: 'right'}}>
                         <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} 
@@ -207,7 +226,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         : null
                 }
                 {
-                    currentUIState == "viewer" || currentUIState == "deleteDialog"?
+                    currentUIState == "viewer" || currentUIState == "deleteDialog" || currentUIState == "messageBar" ?
                         <ImageGallery
                             items={imageViewerList}
                             lazyLoad={false}
