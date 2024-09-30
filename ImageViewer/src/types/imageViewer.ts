@@ -7,5 +7,6 @@ export type imageViewerData = {
 export type imageRawData = {
     name: string;
     type: string;
+    size: number;
     content: string;
 }

@@ -9,11 +9,10 @@ export const getFileContent = (recordId: string,
         console.log("Get raw file from CRM field");
 
         //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
+        const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imageviewerfile2";
 
         const req = new XMLHttpRequest();
         req.open("GET", url);
-        //req.setRequestHeader("x-ms-file-name", "test.txt");
         req.setRequestHeader("Content-Type", "application/octet-stream")
         req.setRequestHeader("Content-Range", "0-4095/8192")
         req.setRequestHeader("Accept-Encoding", "gzip, deflate")
@@ -23,36 +22,22 @@ export const getFileContent = (recordId: string,
             if (this.readyState === 4) {
                 req.onreadystatechange = null;
                 if (this.status === 200 || this.status === 204) {
-                    /*
-                    if (download) {
-                        console.log("Downloading")
-                        const base64ToString = atob(JSON.parse(req.responseText).value).toString()
-                        console.log(JSON.parse(base64ToString))
-
-                        const dataList = JSON.parse(base64ToString)
-                        dataList.forEach((element: { content: string; }) => {
-                            const downloadLink = document.createElement("a");
-                            downloadLink.href = element?.content.toString();
-                            downloadLink.download = "test.jpg";
-                            downloadLink.click();
-                        });
-                    }
-                        */
                     console.log("status: " + this.status)
-                    //const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
                     const base64ToString = atob(JSON.parse(req.responseText).value).toString()
                     console.log(base64ToString)
                     const imgDataList = JSON.parse(base64ToString)
                     setImageRawData(imgDataList)
                     if (imgDataList.length == 0) {
-                        //setCurrentUIState("uploader")
+                        setCurrentUIState("viewer")
                     }
                     else {
-                        //setCurrentUIState("viewer")
+                        setCurrentUIState("viewer")
                     }
                 } else {
                     const error = JSON.parse(this.response).error
                     console.log("Error : " + error.message)
+                    
+                    setCurrentUIState("viewer")
                 }
             }
         };
@@ -67,29 +52,13 @@ export const getFileContent = (recordId: string,
  * @param dataFile content of the file in base64
  */
 
-export const patchFileContent = (recordId: string, imageRawData: imageRawData[]) => {
+export const patchFileContent = (recordId: string, imageRawData: imageRawData[], 
+    setCurrentUIState: React.Dispatch<React.SetStateAction<string>>) => {
     console.log("patchFileContent");
     console.log(imageRawData);
-    /*
-    //let base64ToString = Buffer.from(imageRawData, "base64").toString();
-    let currentData = [...imageRawData]
-    if (data != "" && action === "add") {
-        console.log(currentData)
-        currentData.push({ name: "", type: "", content: data })
-        console.log(currentData)
-    }
-    else if (action === "delete") {
-        currentData.splice(currentIndex, 1)
-        console.log(currentData)
-    }
-    else {
-        currentData = []
-    }
-    */
-
 
     //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-    const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imgviewerfile";
+    const url = "https://org90d2222c.crm.dynamics.com/api/data/v9.2/leads(" + recordId + ")/new_imageviewerfile2";
 
     const req = new XMLHttpRequest()
     req.open("PATCH", url)
@@ -104,15 +73,18 @@ export const patchFileContent = (recordId: string, imageRawData: imageRawData[])
             req.onreadystatechange = null;
             if (this.status === 200 || this.status === 204) {
                 console.log("File Upload Done.")
+                
+                setCurrentUIState("viewer")
                 //getFileContent(false)
             } else {
                 const error = JSON.parse(this.response).error
                 console.log("Error : " + error.message)
+                
+                setCurrentUIState("viewer")
             }
         }
     };
 
-    //req.send(JSON.stringify([{name: "", type: "", content: ""}]));
     req.send(JSON.stringify(imageRawData));
 }
 

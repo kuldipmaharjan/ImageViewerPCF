@@ -3,9 +3,10 @@ import { IInputs } from "../../generated/ManifestTypes"
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import ImageGallery from 'react-image-gallery'
 import { IconButton } from '@fluentui/react'
+import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
+import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { imageViewerData, imageRawData } from '../types/imageViewer'
 import ScaleLoader from "react-spinners/ScaleLoader";
-import { useDropzone } from 'react-dropzone'
 import { getFileContent, patchFileContent } from '../helpers/dynamicsData'
 import { testImages } from '../test/imgData'
 
@@ -23,10 +24,14 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
 
     const [imageViewerList, setImageViewerList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
-    const [currentUIState, setCurrentUIState] = useState("viewer");
+    const [currentUIState, setCurrentUIState] = useState("loader")
     
     const hasPageBeenRendered = useRef({ imageRawData: false, imageViewerList: false })
+    
+    const tempImageRawData = useRef([] as Array<imageRawData>)
+    const newTempImageRawDataCount = useRef(0)
     const currentIndex = useRef(0)
+    const hiddenFileInput = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         getFileContent(recordId, setCurrentUIState, setImageRawData);
@@ -64,15 +69,13 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     }, [imageViewerList])
 
     
-    const appendImage = (imagedata: string) => {
-        //setCurrentUIState("loader")
-        console.log(`[ImageViewerPCF] Append Image with data ${imagedata}`)
-        
-        const updatedRawData = [...imageRawData]
-        updatedRawData.push({ name: "", type: "", content: imagedata })
-        console.log(updatedRawData)
-        patchFileContent(recordId, updatedRawData)
-        setImageRawData(updatedRawData)
+    const appendImage = (latestImageDataArray: imageRawData[]) => {
+        setCurrentUIState("loader")
+        console.log(`[ImageViewerPCF] Append Image with data ${latestImageDataArray}`)
+        patchFileContent(recordId, latestImageDataArray, setCurrentUIState)
+        tempImageRawData.current = []
+        setImageRawData(latestImageDataArray)
+        setCurrentUIState("viewer")
     }
 
     const deleteImage = (index: number) => {
@@ -82,85 +85,120 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         updatedRawData.splice(index, 1)
         console.log(updatedRawData)
         
-        patchFileContent(recordId, updatedRawData)
+        patchFileContent(recordId, updatedRawData, setCurrentUIState)
         setImageRawData(updatedRawData)
+        currentIndex.current = 0
+        //setCurrentUIState("viewer")
     }
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
-        console.log(acceptedFiles);
+    const readFile = async (file: File) => {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => {
+                resolve(fr.result )
+            };
+            fr.onerror = reject;
+            fr.readAsDataURL(file)
+        })
+    }
 
-        acceptedFiles.forEach(file => {
+     const fileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        console.log("Filedrop")
+        e.preventDefault()
+        tempImageRawData.current = [...imageRawData]
+        handleFile(e.dataTransfer.files as FileList)
+    }
+
+    const handleFile = (fileList: FileList) => {
+        console.log(fileList)
+        setCurrentUIState("loader")
+        newTempImageRawDataCount.current = fileList.length + tempImageRawData.current.length
+
+        Array.from(fileList).forEach(async (file: File) => {
             // Do something with the files
-            const reader = new FileReader();
-            reader.addEventListener('load', (event: ProgressEvent<FileReader>) => {
-                event.preventDefault();
-                console.log("completed reading file")
-                if (event.target) {
-                    console.log(event.target.result);
-                    appendImage(event.target.result as string)
-                    //patchFileContent(event.target.result as string, "add");
-                } else {
-                    console.error("FileReader event target is null.");
-                }
-            });
-            reader.readAsDataURL(file)
-            //reader.fileName = files[0].name
+
+            const a = await readFile(file)
+            tempImageRawData.current.push({ name: file.name, type: file.type, size: file.size, content: a as string })  
+             
+            console.log(`tempImageRawData.current ${tempImageRawData.current}`)
+
+            if (newTempImageRawDataCount.current == tempImageRawData.current.length) {
+                appendImage(tempImageRawData.current)
+            }
         });
 
-    }, [])
+    }
+
+    const handleUploadClick = () => {
+        if (hiddenFileInput.current) {
+            hiddenFileInput.current.click();
+        }
+    }
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        tempImageRawData.current = [...imageRawData]
+        handleFile(event.target.files as FileList);
+    }
+
+    const fileDownload = (index: number) => {
+        console.log(`[ImageViewerPCF] Download Image ${imageRawData[index].name}`)
+        //const updatedRawData = [...imageRawData]
+        const downloadLink = document.createElement("a")
+        downloadLink.href = imageRawData[index].content
+        downloadLink.download = imageRawData[index].name
+        downloadLink.click()
+    }
 
     const dragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
+        e.preventDefault()
     }
     
     const dragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
+        e.preventDefault()
     }
     
     const dragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
+        e.preventDefault()
     }
 
-    const { getRootProps, getInputProps, open } = useDropzone({
-        // Disable click and keydown behavior
-        noClick: true,
-        noKeyboard: true,
-        onDrop
-    });
+
+    const modalPropsStyles = { main: { maxWidth: 450 } };
+    const dialogContentProps = {
+        type: DialogType.normal,
+        title: 'Confirm Delete',
+        subText: 'Do you want to delete the current image?'
+    };
+
 
     return (
-        <div  {...getRootProps({ className: 'dropzone' })} 
+        <div 
         onDragOver={dragOver}
         onDragEnter={dragEnter} 
         onDragLeave={dragLeave} 
-        //onDrop={dragLeave}
+        onDrop={fileDrop}
         >
             {
                 currentUIState == "viewer"?
                     <div style={{float: 'right'}}>
-                        <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); /*getFileContent(true);*/ }} />
-                        <input {...getInputProps()} />
-                        <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Upload on....`); open; }} />
-                        <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); deleteImage(currentIndex.current) }} />
+                        <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} 
+                            onClick={() => { console.log("Download Clicked"); fileDownload(currentIndex.current);}} />
+                        <input
+                                type="file"
+                                onChange={handleChange}
+                                ref={hiddenFileInput}
+                                style={{display: 'none'}}
+                            />
+
+                        <IconButton iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }} 
+                            onClick={() => { console.log(`Upload on....`); handleUploadClick(); }} />
+                        <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} 
+                            onClick={() => { console.log(`Delete Clicked for ${currentIndex.current}`); setCurrentUIState("deleteDialog");}} />
                     </div>
                     : null
             }
             <section style={{ margin: "0 auto", width: "100%", height: "100%", display: 'inline-block' }}>
                 {
-                    currentUIState == "uploader" ?
-                        <div {...getRootProps({ className: 'dropzone' })}>
-                            <input {...getInputProps()} />
-                            <p>Drag 'n' drop some files here</p>
-                            <button type="button" onClick={open}>
-                                Open File Dialog
-                            </button>
-                        </div>
-
-                        : null
-                }
-
-                {
-                    currentUIState == "loader" ?
+                    currentUIState == "loader"?
                         <ScaleLoader
                             style={{ marginTop: "25vh", display: "block" }}
                             aria-label="Loading Spinner"
@@ -168,9 +206,8 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         />
                         : null
                 }
-
                 {
-                    currentUIState == "viewer"?
+                    currentUIState == "viewer" || currentUIState == "deleteDialog"?
                         <ImageGallery
                             items={imageViewerList}
                             lazyLoad={false}
@@ -187,7 +224,18 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         : null
                 }
             </section>
+
+            <Dialog
+                hidden={currentUIState != "deleteDialog"}
+                onDismiss={() => setCurrentUIState("viewer")}
+                dialogContentProps={dialogContentProps}
+                modalProps={{isBlocking: true, styles: modalPropsStyles}}
+            >
+                <DialogFooter>
+                    <PrimaryButton onClick={() => {deleteImage(currentIndex.current)}} text="Delete" />
+                    <DefaultButton onClick={() => setCurrentUIState("viewer")} text="Cancel" />
+                </DialogFooter>
+            </Dialog>
         </div>
-        
     );
 }
