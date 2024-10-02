@@ -34,6 +34,7 @@
     <resources>
       <code path="index.ts" order="1"/>
       <css path="src/css/image-gallery.css" order="1" />
+      <css path="src/css/drop-zone.css" order="1" />
       <!-- UNCOMMENT TO ADD MORE RESOURCES
       <css path="css/ImageViewer.css" order="1" />
       <resx path="strings/ImageViewer.1033.resx" version="1.0.0" />

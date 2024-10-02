@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { IInputs } from "../../generated/ManifestTypes"
-import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
+import { useState, useEffect, useRef, DragEvent as ReactDragEvent } from 'react'
 import ImageGallery from 'react-image-gallery'
+import ScaleLoader from "react-spinners/ScaleLoader";
 import { IconButton, MessageBar, MessageBarType, } from '@fluentui/react'
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { imageViewerData, imageRawData } from '../types/imageViewer'
-import ScaleLoader from "react-spinners/ScaleLoader";
 import { getFileContent, patchFileContent } from '../helpers/dynamicsData'
 import { testImages } from '../test/imgData'
 
@@ -15,12 +15,12 @@ export type ImageViewerWrapperProps = {
 }
 
 export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfContext }) => {
-    console.log(pcfContext)
     const igProps = pcfContext.parameters.imageViewerProps.raw || ""
 
     // @ts-expect-error necessity
     const recordId = pcfContext.page.entityId
-    //const crmUrl = pcfContext.page.getClientUrl()
+    // @ts-expect-error necessity
+    const webApiURL = `${pcfContext.page.getClientUrl() as string}/api/data/v9.2/leads(${recordId})/new_imageviewerfile2`
 
     const [imageViewerList, setImageViewerList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
@@ -34,7 +34,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     const hiddenFileInput = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
-        getFileContent(recordId, setCurrentUIState, setImageRawData);
+        getFileContent(webApiURL, setCurrentUIState, setImageRawData);
         //setImageViewerList([...testImages] as imageViewerData[])  //comment actual data source and uncomment this line to use test data
     }, []);
 
@@ -54,7 +54,8 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         })
 
         setImageViewerList([...tempList])
-        setCurrentUIState("viewer")
+
+        
     }, [imageRawData])
 
     useEffect(() => {
@@ -72,7 +73,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
     const appendImage = (latestImageDataArray: imageRawData[]) => {
         setCurrentUIState("loader")
         console.log(`[ImageViewerPCF] Append Image with data ${latestImageDataArray}`)
-        patchFileContent(recordId, latestImageDataArray, setCurrentUIState)
+        patchFileContent(webApiURL, latestImageDataArray, setCurrentUIState)
         tempImageRawData.current = []
         setImageRawData(latestImageDataArray)
         setCurrentUIState("viewer")
@@ -85,7 +86,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         updatedRawData.splice(index, 1)
         console.log(updatedRawData)
         
-        patchFileContent(recordId, updatedRawData, setCurrentUIState)
+        patchFileContent(webApiURL, updatedRawData, setCurrentUIState)
         setImageRawData(updatedRawData)
         currentIndex.current = 0
         //setCurrentUIState("viewer")
@@ -115,8 +116,6 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         newTempImageRawDataCount.current = fileList.length + tempImageRawData.current.length
 
         Array.from(fileList).forEach(async (file: File) => {
-            // Do something with the files
-
             const a = await readFile(file)
             tempImageRawData.current.push({ name: file.name, type: file.type, size: file.size, content: a as string })  
              
@@ -182,6 +181,7 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
         onDragEnter={dragEnter} 
         onDragLeave={dragLeave} 
         onDrop={fileDrop}
+        style={{ display: 'block', alignItems: 'center', justifyContent: 'center' }}
         >
             {
                 currentUIState == "messageBar"?
@@ -192,13 +192,13 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                     dismissButtonAriaLabel="Close"
                     truncated={true}
                 >
-                <b>The file size is too big.</b> The maximum file size is 16MB. Please try again with a smaller file.
+                <b>The file size is too big.</b> The maximum total size is 12MB. Please try again with a smaller file.
                 </MessageBar>
                 : null
             }
             {
-                currentUIState == "viewer"?
-                    <div style={{float: 'right'}}>
+                ['viewer', 'dropImage'].includes(currentUIState) ?
+                    <div>
                         <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} 
                             onClick={() => { console.log("Download Clicked"); fileDownload(currentIndex.current);}} />
                         <input
@@ -215,18 +215,17 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                     </div>
                     : null
             }
-            <section style={{ margin: "0 auto", width: "100%", height: "100%", display: 'inline-block' }}>
+            <div style={{ width: "100%", height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
                 {
                     currentUIState == "loader"?
                         <ScaleLoader
-                            style={{ marginTop: "25vh", display: "block" }}
                             aria-label="Loading Spinner"
                             data-testid="loader"
                         />
                         : null
                 }
                 {
-                    currentUIState == "viewer" || currentUIState == "deleteDialog" || currentUIState == "messageBar" ?
+                    ['viewer', 'deleteDialog', 'messageBar'].includes(currentUIState) ?
                         <ImageGallery
                             items={imageViewerList}
                             lazyLoad={false}
@@ -242,7 +241,16 @@ export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfConte
                         />
                         : null
                 }
-            </section>
+                {
+                    currentUIState == "dropImage" ?
+                        <div className="drop-zone">
+                            <div className="drop-placeholder">
+                                DROP IMAGE HERE
+                            </div>
+                        </div>
+                        : null
+                }
+            </div>
 
             <Dialog
                 hidden={currentUIState != "deleteDialog"}
