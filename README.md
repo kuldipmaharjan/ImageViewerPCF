@@ -27,15 +27,14 @@ https://github.com/user-attachments/assets/9e421914-639e-471e-a4b2-da436cca27f1
 
 ## Setup
 Import PCF control using one of two ways
-1. Clone this project, [build](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/create-custom-controls-using-pcf) and deploy it locally using instructions from [MS Docs](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/import-custom-controls). 
-2. Import the provided solution in this project directly in your Dynamics org
-3. Create a File Type field under the Entity that you want to utilize this ImageViewerPCF's functionality
-4. Create another placeholder field of type "single line of text". Its sole purpose is to host the pcf control in the Entity form
-5. For field created in step #4, set it up in the form section as desired (or in a new tab)
+1. Clone this project, [build](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/create-custom-controls-using-pcf) and deploy it locally using instructions from [MS Docs](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/import-custom-controls) **OR** Import the provided [solution][text](Solutions/downloads/ImageViewerPCF_unmanaged.zip) directly in your Dynamics org
+2. Create a File Type field under the Entity that you want to utilize this ImageViewerPCF's functionality
+3. Create another placeholder field of type "single line of text". Its sole purpose is to host the pcf control in the Entity form
+4. For field created in step #4, set it up in the form section as desired (or in a new tab)
 ![alt text](assets/PlaceholderFieldSetup.png)
-6. For now the only required parameter is **placeholder** and **fileFieldName**. **placeholder** is tied to the text field hosting the pcf control. Make sure to hide the label for best results. **fileFieldName** is the File Type Field's logical name that you need to populate
-7. Save and Publish the form changes
-8. Enjoy this new feature upon navigating to the respective entity record's form
+5. For now the only required parameter is **placeholder** and **fileFieldName**. **placeholder** is tied to the text field hosting the pcf control. Make sure to hide the label for best results. **fileFieldName** is the File Type Field's logical name that you need to populate
+6. Save and Publish the form changes
+7. Enjoy this new feature upon navigating to the respective entity record's form
 
 ## Current Limitations
 - Current iteration has the max upload size of 12MB due to latest CRM webapi requiring chunking when retrieving bigger files (> 16 MB). This issue will be eliviated in next iteration upon which the max upload size will be 1GB
