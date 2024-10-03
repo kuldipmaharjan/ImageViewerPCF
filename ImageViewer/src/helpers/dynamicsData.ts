@@ -1,5 +1,12 @@
 
-import { imageViewerData, imageRawData } from '../types/imageViewer'
+import { imageRawData } from '../types/imageViewer'
+
+/**
+ * Patch the record containing the file field with the file to push
+ * @param webApiURL webApi URL of the record to update
+ * @param setCurrentUIState for updating the UI state
+ * @param setImageRawData for updating the imageRawData state
+ */
 
 export const getFileContent = (webApiURL: string,
     setCurrentUIState: React.Dispatch<React.SetStateAction<string>>,
@@ -17,9 +24,7 @@ export const getFileContent = (webApiURL: string,
         if (this.readyState === 4) {
             req.onreadystatechange = null;
             if (this.status === 200 || this.status === 204) {
-                console.log("status: " + this.status)
                 const base64ToString = atob(JSON.parse(req.responseText).value).toString()
-                console.log(base64ToString)
                 const imgDataList = JSON.parse(base64ToString)
                 setImageRawData(imgDataList)
                 
@@ -31,8 +36,7 @@ export const getFileContent = (webApiURL: string,
                 }
             } else {
                 const error = JSON.parse(this.response).error
-                console.log("Error : " + error.message)
-
+                console.log(`[ImageViewerPCF] Error on getFileContent : ${error.message}`)
                 setCurrentUIState("viewer")
             }
         }
@@ -43,9 +47,9 @@ export const getFileContent = (webApiURL: string,
 
 /**
  * Patch the record containing the file field with the file to push
- * @param recordId record to be patched
- * @param fileName name of the file which is pushed
- * @param dataFile content of the file in base64
+ * @param webApiURL webApi URL of the record to update
+ * @param imageRawData base64 array content of the file
+ * @param setCurrentUIState for updating the UI state
  */
 
 export const patchFileContent = (
@@ -58,7 +62,6 @@ export const patchFileContent = (
 
     const req = new XMLHttpRequest()
     req.open("PATCH", webApiURL)
-    req.setRequestHeader("x-ms-file-name", "rawIMG.txt")
     req.setRequestHeader("Content-Type", "application/octet-stream")
     req.setRequestHeader("Content-Range", "0-4095/8192")
     req.setRequestHeader("Accept-Encoding", "gzip, deflate")
@@ -68,7 +71,12 @@ export const patchFileContent = (
         if (this.readyState === 4) {
             req.onreadystatechange = null;
             if (this.status === 200 || this.status === 204) {
-                setCurrentUIState("viewer")
+                if (imageRawData.length == 0) {
+                    setCurrentUIState("dropImage")
+                }
+                else {
+                    setCurrentUIState("viewer")
+                }
             } else {
                 const error = JSON.parse(this.response).error
                 console.log(`[ImageViewerPCF] Error on patchFileContent : ${error.message}`)
