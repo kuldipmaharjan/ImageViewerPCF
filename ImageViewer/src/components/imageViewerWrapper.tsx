@@ -1,11 +1,14 @@
 import * as React from 'react'
-import { useState, useEffect, useCallback, useRef, Fragment, useMemo, DragEvent as ReactDragEvent } from 'react'
 import { IInputs } from "../../generated/ManifestTypes"
+import { useState, useEffect, useRef, DragEvent as ReactDragEvent } from 'react'
 import ImageGallery from 'react-image-gallery'
-import { patchFileContent } from '../helpers/dynamicsData'
-import { IconButton } from '@fluentui/react'
+import ScaleLoader from "react-spinners/ScaleLoader";
+import { IconButton, MessageBar, MessageBarType, } from '@fluentui/react'
+import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
+import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { imageViewerData, imageRawData } from '../types/imageViewer'
-//import { DropArgument } from 'net'
+import { getFileContent, patchFileContent } from '../helpers/dynamicsData'
+import { genPluralName } from '../helpers/common'
 import { testImages } from '../test/imgData'
 
 export type ImageViewerWrapperProps = {
@@ -13,219 +16,254 @@ export type ImageViewerWrapperProps = {
 }
 
 export const ImageViewerWrapper: React.FC<ImageViewerWrapperProps> = ({ pcfContext }) => {
-    console.log(pcfContext)
-    const igProps = pcfContext.parameters.imageViewerProps.raw || ""
+    const dynamicProps = pcfContext.parameters.imageViewerProps.raw || ""   // for future use
+    const fileFieldName = pcfContext.parameters.fileFieldName.raw || ""
 
-    // @ts-expect-error test
+    // @ts-expect-error necessity
     const recordId = pcfContext.page.entityId
-    //const crmUrl = pcfContext.page.getClientUrl()
+    // @ts-expect-error necessity
+    const entityName = genPluralName(pcfContext.page.entityTypeName)
+    // @ts-expect-error necessity
+    const webApiURL = `${pcfContext.page.getClientUrl() as string}/api/data/v9.2/${entityName}(${recordId})/${fileFieldName}`
 
-    //const [currentImage, setCurrentImage] = useState(0);
-    //const [isViewerOpen, setIsViewerOpen] = useState(false);
-    const [imageList, setImageList] = useState([] as Array<imageViewerData>)
+    const [imageViewerList, setImageViewerList] = useState([] as Array<imageViewerData>)
     const [imageRawData, setImageRawData] = useState([] as Array<imageRawData>)
+    const [currentUIState, setCurrentUIState] = useState("loader")
+
+    const tempImageRawData = useRef([] as Array<imageRawData>)  // for tracking the new images to be uploaded without updating the state
+    const newTempImageRawDataCount = useRef(0)                  // for tracking the number/size of new images to be uploaded
+    const currentIndex = useRef(0)                              // for tracking the current image index
+    const messageBarText = useRef("")                           // for handling the text displayed on the message bar
+    const hiddenFileInput = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
-        console.log("Get raw file from CRM field");
-        //getFileContent(false);  //comment for local test
-
-        setImageList([...testImages])  //for local test
+        getFileContent(webApiURL, setCurrentUIState, setImageRawData);
+        //setImageViewerList([...testImages] as imageViewerData[])  //comment actual data source and uncomment this line to use test data
     }, []);
 
     useEffect(() => {
-        console.log("imageRawData updated")
-        console.log(imageRawData)
-
         const tempList = [] as Array<imageViewerData>
         Array.from(imageRawData).forEach((element: imageRawData) => {
-            console.log(element)
-            tempList.push({ original: element.content, thumbnail: element.content })
+            tempList.push({ original: element.content, thumbnail: element.content, name: "" })
         })
 
-        setImageList([...tempList])
-        imageList.forEach((element: imageViewerData) => {
-            console.log(element)
-        })
-
+        setImageViewerList([...tempList])
     }, [imageRawData])
 
-    useEffect(() => {
-        console.log("imageList updated")
-        console.log(imageList)
-    }, [imageList])
-
-    const getFileContent = (download: boolean) => {
-        //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org3bf05eeb.crm.dynamics.com/api/data/v9.2/accounts(" + recordId + ")/km_rawdata";
-
-        const req = new XMLHttpRequest();
-        req.open("GET", url);
-        //req.setRequestHeader("x-ms-file-name", "test.txt");
-        req.setRequestHeader("Content-Type", "application/octet-stream")
-        req.setRequestHeader("Content-Range", "0-4095/8192")
-        req.setRequestHeader("Accept-Encoding", "gzip, deflate")
-        req.setRequestHeader("OData-MaxVersion", "4.0")
-        req.setRequestHeader("OData-Version", "4.0")
-        req.onreadystatechange = function () {
-            if (this.readyState === 4) {
-                req.onreadystatechange = null;
-                if (this.status === 200 || this.status === 204) {
-                    if (download) {
-                        console.log("Downloading")
-                        const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
-                        console.log(JSON.parse(base64ToString))
-
-                        const dataList = JSON.parse(base64ToString)
-                        dataList.forEach((element: { content: string; }) => {
-                            const downloadLink = document.createElement("a");
-                            downloadLink.href = element?.content.toString();
-                            downloadLink.download = "test.jpg";
-                            downloadLink.click();
-                        });
-                        //const linkSource = `data:image;base64,${base64Data}`;
-
-                        /*
-                            // Parameters:
-                            // contentType: The content type of your file. 
-                            //              its like application/pdf or application/msword or image/jpeg or
-                            //              image/png and so on
-                            // base64Data: Its your actual base64 data
-                            // fileName: Its the file name of the file which will be downloaded. 
-
-                            function downloadBase64File(contentType, base64Data, fileName) {
-                                const linkSource = `data:${contentType};base64,${base64Data}`;
-                                const downloadLink = document.createElement("a");
-                                downloadLink.href = linkSource;
-                                downloadLink.download = fileName;
-                                downloadLink.click();
-                            }
-                        */
-                    }
-                    else {
-                        console.log("download " + download)
-                        console.log("status: " + this.status)
-                        const base64ToString = Buffer.from(JSON.parse(req.responseText).value, "base64").toString()
-                        console.log(base64ToString)
-                        setImageRawData(JSON.parse(base64ToString))
-                    }
-                } else {
-                    const error = JSON.parse(this.response).error
-                    console.log("Error : " + error.message)
-                }
-            }
-        };
-        req.send()
+    const appendImage = (latestImageDataArray: imageRawData[]) => {
+        console.log(`[ImageViewerPCF] Append Image with data ${latestImageDataArray}`)
+        setCurrentUIState("loader")
+        patchFileContent(webApiURL, latestImageDataArray, setCurrentUIState)
+        tempImageRawData.current = []
+        setImageRawData(latestImageDataArray)
     }
 
+    const deleteImage = (index: number) => {
+        console.log(`[ImageViewerPCF] Delete Image at index ${index}`)
+        setCurrentUIState("loader")
+        const updatedRawData = [...imageRawData]
+        updatedRawData.splice(index, 1)
 
-    /**
-     * Patch the record containing the file field with the file to push
-     * @param recordId record to be patched
-     * @param fileName name of the file which is pushed
-     * @param dataFile content of the file in base64
-     */
-
-    const patchFileContent = (data: string) => {
-        console.log("patchFileContent");
-        //append dropped file 
-
-        //let base64ToString = Buffer.from(imageRawData, "base64").toString();
-        let currentData = [...imageRawData]
-        if (data != "") {
-            console.log(currentData)
-            currentData.push({ name: "", type: "", content: data })
-            console.log(currentData)
-        }
-        else {
-            currentData = []
-        }
-
-
-        //const url = `${crmUrl}/api/data/v9.2/accounts(${recordId})/km_rawdata`
-        const url = "https://org3bf05eeb.crm.dynamics.com/api/data/v9.2/accounts(" + recordId + ")/km_rawdata";
-
-        const req = new XMLHttpRequest()
-        req.open("PATCH", url)
-        req.setRequestHeader("x-ms-file-name", "rawIMG.txt")
-        req.setRequestHeader("Content-Type", "application/octet-stream")
-        req.setRequestHeader("Content-Range", "0-4095/8192")
-        req.setRequestHeader("Accept-Encoding", "gzip, deflate")
-        req.setRequestHeader("OData-MaxVersion", "4.0")
-        req.setRequestHeader("OData-Version", "4.0")
-        req.onreadystatechange = function () {
-            if (this.readyState === 4) {
-                req.onreadystatechange = null;
-                if (this.status === 200 || this.status === 204) {
-                    console.log("File Upload Done.")
-                    getFileContent(false)
-                } else {
-                    const error = JSON.parse(this.response).error
-                    console.log("Error : " + error.message)
-                }
-            }
-        };
-
-        //req.send(JSON.stringify([{name: "", type: "", content: ""}]));
-        req.send(JSON.stringify(currentData));
+        patchFileContent(webApiURL, updatedRawData, setCurrentUIState)
+        setImageRawData(updatedRawData)
+        currentIndex.current = 0
     }
 
-
-    const dragOver = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
+    const readFile = async (file: File) => {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => {
+                resolve(fr.result)
+            };
+            fr.onerror = reject;
+            fr.readAsDataURL(file)
+        })
     }
 
-    const dragEnter = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
-    }
-
-    const dragLeave = (e: ReactDragEvent<HTMLElement>) => {
-        e.preventDefault();
-    }
-
-    const fileDrop = (e: ReactDragEvent<HTMLElement>) => {
-        console.log("Filedrop")
+    const fileDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault()
-        const files = e.dataTransfer?.files
-        if (!files) {
-            console.error("No files were dropped.");
-            return;
-        }
-        console.log(files)
+        tempImageRawData.current = [...imageRawData]
+        handleFile(e.dataTransfer.files as FileList)
+    }
 
-        const reader = new FileReader();
-        reader.addEventListener('load', (event: ProgressEvent<FileReader>) => {
-            console.log("completed reading file")
-            if (event.target) {
-                console.log(event.target.result);
-                patchFileContent(event.target.result as string);
-            } else {
-                console.error("FileReader event target is null.");
+    const handleFile = (fileList: FileList) => {
+        setCurrentUIState("loader")
+        newTempImageRawDataCount.current = fileList.length + tempImageRawData.current.length
+
+        Array.from(fileList).forEach(async (file: File) => {
+            const data = await readFile(file)
+
+            if (!['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'].includes(file.type)) {
+                messageBarText.current = "Invalid file type. Please upload an image file. Supported formats are JPEG, PNG, GIF, BMP and WebP."
+                setCurrentUIState("messageBar")
+                return
+            }
+
+            tempImageRawData.current.push({ name: file.name, type: file.type, size: file.size, content: data as string })
+
+            const totalSize = tempImageRawData.current.map((item) => item.size).reduce((accumulator, currentVal) => { return accumulator + currentVal; }, 0)
+            console.log(`[ImageViewerPCF] Total Size: ${totalSize}`)
+            if (totalSize * 4 / 3 > 16000000) { // converting binary to base64 increases the size by 4/3
+                messageBarText.current = "Storage limit reached. The maximum total size is 12MB. Please try again with a smaller file."
+                setCurrentUIState("messageBar")
+                return
+            }
+
+            if (newTempImageRawDataCount.current == tempImageRawData.current.length) {
+                appendImage(tempImageRawData.current)
             }
         });
-        reader.readAsDataURL(files[0])
     }
 
+    const handleUploadClick = () => {
+        if (hiddenFileInput.current) {
+            hiddenFileInput.current.click();
+        }
+    }
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        tempImageRawData.current = [...imageRawData]
+        handleFile(event.target.files as FileList);
+    }
+
+    const fileDownload = (index: number) => {
+        console.log(`[ImageViewerPCF] Download Image ${imageRawData[index].name}`)
+        const downloadLink = document.createElement("a")
+        downloadLink.href = imageRawData[index].content
+        downloadLink.download = imageRawData[index].name
+        downloadLink.click()
+    }
+
+    const dragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+    }
+
+    const dragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+    }
+
+    const dragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+    }
+
+    const modalPropsStyles = { main: { maxWidth: 450 } };
+    const dialogContentProps = {
+        type: DialogType.normal,
+        title: 'Confirm Delete',
+        subText: 'Do you want to delete the current image?'
+    };
+
     return (
-        <section style={{ margin: "0 auto", width: "100%", height: "800px", display: 'inline-block' }}
+        <div
             onDragOver={dragOver}
             onDragEnter={dragEnter}
             onDragLeave={dragLeave}
-            onDrop={fileDrop}>
+            onDrop={fileDrop}
+            style={{ display: 'block', alignItems: 'center', justifyContent: 'center' }}
+        >
+            {
+                currentUIState == "messageBar" ?
+                    <MessageBar
+                        messageBarType={MessageBarType.blocked}
+                        isMultiline={false}
+                        onDismiss={() => setCurrentUIState("viewer")}
+                        dismissButtonAriaLabel="Close"
+                        truncated={true}
+                    >
+                        {messageBarText.current}
+                    </MessageBar>
+                    : null
+            }
+            {
+                ['viewer', 'dropImage'].includes(currentUIState) ?
+                    <div>
+                        {
+                            currentUIState != "dropImage" && currentUIState == "viewer" ?
+                                <IconButton
+                                    iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }}
+                                    onClick={() => { fileDownload(currentIndex.current); }}
+                                    title='Download'
+                                    ariaLabel='Download'
+                                />
+                                : null
+                        }
 
-            <ImageGallery
-                items={testImages}
-                lazyLoad={false}
-                showThumbnails={true}
-                showFullscreenButton={true}
-                showPlayButton={false}
-                showBullets={true}
-                showIndex={true}
-                infinite={true}
-                slideDuration={500}
-                slideInterval={500}
-            />
-            <IconButton iconProps={{ iconName: 'Download', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Download Clicked"); getFileContent(true); }} />
-            <IconButton iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }} onClick={() => { console.log("Delete Clicked"); patchFileContent(""); }} />
-        </section>
+                        <input
+                            type="file"
+                            onChange={handleChange}
+                            ref={hiddenFileInput}
+                            style={{ display: 'none' }}
+                            multiple
+                        />
+
+                        <IconButton
+                            iconProps={{ iconName: 'Upload', styles: { root: { color: 'black', zIndex: 1000 } } }}
+                            onClick={() => { handleUploadClick(); }}
+                            title='Upload'
+                            ariaLabel='Upload'
+                        />
+
+                        {
+                            currentUIState != "dropImage" && currentUIState == "viewer" ?
+                                <IconButton
+                                    iconProps={{ iconName: 'Delete', styles: { root: { color: 'black', zIndex: 1000 } } }}
+                                    onClick={() => { setCurrentUIState("deleteDialog"); }}
+                                    title='Delete'
+                                    ariaLabel='Delete'
+                                />
+                                : null
+                        }
+                    </div>
+                    : null
+            }
+            <div style={{ width: "100%", height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '350px' }}>
+                {
+                    currentUIState == "loader" ?
+                        <ScaleLoader
+                            aria-label="Loading Spinner"
+                            data-testid="loader"
+                        />
+                        : null
+                }
+                {
+                    ['viewer', 'deleteDialog', 'messageBar'].includes(currentUIState) ?
+                        <ImageGallery
+                            items={imageViewerList}
+                            lazyLoad={false}
+                            showThumbnails={true}
+                            showFullscreenButton={false}
+                            showPlayButton={false}
+                            showBullets={true}
+                            showIndex={true}
+                            infinite={true}
+                            slideDuration={200}
+                            slideInterval={500}
+                            onSlide={(index: number) => currentIndex.current = index}
+                        />
+                        : null
+                }
+                {
+                    currentUIState == "dropImage" ?
+                        <div className="drop-zone">
+                            <div className="drop-placeholder">
+                                DROP IMAGE HERE
+                            </div>
+                        </div>
+                        : null
+                }
+            </div>
+
+            <Dialog
+                hidden={currentUIState != "deleteDialog"}
+                onDismiss={() => setCurrentUIState("viewer")}
+                dialogContentProps={dialogContentProps}
+                modalProps={{ isBlocking: true, styles: modalPropsStyles }}
+            >
+                <DialogFooter>
+                    <PrimaryButton onClick={() => { deleteImage(currentIndex.current) }} text="Delete" />
+                    <DefaultButton onClick={() => setCurrentUIState("viewer")} text="Cancel" />
+                </DialogFooter>
+            </Dialog>
+        </div>
     );
 }

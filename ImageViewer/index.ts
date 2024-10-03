@@ -26,12 +26,10 @@ export class ImageViewer implements ComponentFramework.StandardControl<IInputs, 
     {
         // Add control initialization code
         this.container = container;
-        console.log(container); 
 
 		this.imageViewerWrapperProps = {
 			pcfContext: context
 		}
-        console.log("init done");
     }
 
 
@@ -53,9 +51,6 @@ export class ImageViewer implements ComponentFramework.StandardControl<IInputs, 
         } catch (error) {
             console.error(error);
         }
-       
-        console.log("updateView done");
-
     }
 
     /**
