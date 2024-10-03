@@ -41,3 +41,6 @@ Import PCF control using one of two ways
 - Current iteration has the max upload size of 12MB due to latest CRM webapi requiring chunking when retrieving bigger files (> 16 MB). This issue will be eliviated in next iteration upon which the max upload size will be 1GB
 - This control is supposed to be used for use cases where each records will only have limited images (totaling < 100 MB as recommendation for maximal performance) as each update on the image requires the code to patch the whole file binary
 - As we rely on File type field which forces us to update the whole file blob, this technique is not performant as the total image size gets bigger specially if there is a need for constant update (don't get me wrong, it will work fine in practical sense but its not an optimal solution). Future version of this app could potentially allow connecting directly to cloud storage (Azure or AWS) but that would require extra mechanism to generate SAS tokens etc
+
+## Data Conversion
+![alt text](assets/dataConversion.png)
