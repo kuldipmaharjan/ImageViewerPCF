@@ -7,7 +7,16 @@
 
 When image files are uploaded via File Explorer or through a drag-and-drop method, the image file binaries are converted into base64 format and then combined into a single base64 blob. This blob is uploaded into the configured file type field using Web API methods (limitations are covered later in this documentation). When viewing the control, it retrieves the file's base64 content, parses it accordingly, and renders the images.
 
-![alt text](assets/Untitled-1.gif)
+## Features
+- Display multiple images on any CRM Records' forms
+- Upload image(s) via default file selector dialog or simply drag and drop image or group of images
+- Navigate the images using arrow keys from keyboard, or on screen arrow keys, or by directly clicking on thumbnails
+- Download specific image directly from the control
+- Delete specific image directly from the control
+- All image data are bundled and stored on the configured File column
+
+## Demo
+<video controls src="imageviewerNormal.mp4" title="Title"></video>
 
 ## Parameters
 - **placeHolder**           - This can be any text field whose sole purpose is to host this pcf control
@@ -25,14 +34,6 @@ Import PCF control using one of two ways
 6. For now the only required parameter is **placeholder** and **fileFieldName**. **placeholder** is tied to the text field hosting the pcf control. Make sure to hide the label for best results. **fileFieldName** is the File Type Field's logical name that you need to populate
 7. Save and Publish the form changes
 8. Enjoy this new feature upon navigating to the respective entity record's form
-
-## Features
-- Display multiple images on any CRM Records' forms
-- Upload image(s) via default file selector dialog or simply drag and drop image or group of images
-- Navigate the images using arrow keys from keyboard, or on screen arrow keys, or by directly clicking on thumbnails
-- Download specific image directly from the control
-- Delete specific image directly from the control
-- All image data are bundled and stored on the configured File column
 
 ## Current Limitations
 - Current iteration has the max upload size of 12MB due to latest CRM webapi requiring chunking when retrieving bigger files (> 16 MB). This issue will be eliviated in next iteration upon which the max upload size will be 1GB
