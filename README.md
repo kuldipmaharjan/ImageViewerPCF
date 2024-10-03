@@ -16,7 +16,9 @@ When image files are uploaded via File Explorer or through a drag-and-drop metho
 - All image data are bundled and stored on the configured File column
 
 ## Demo
-<video controls src="assets/ImageViewer.mp4" title="Title"></video>
+
+https://github.com/user-attachments/assets/9e421914-639e-471e-a4b2-da436cca27f1
+
 
 ## Parameters
 - **placeHolder**           - This can be any text field whose sole purpose is to host this pcf control
