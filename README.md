@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/9e421914-639e-471e-a4b2-da436cca27f1
 ## Parameters
 - **placeHolder**           - This can be any text field whose sole purpose is to host this pcf control
 - **fileFieldName**         - This is the File Type field which will be used for storing the file base64 blobs
-- **imageViewerProps**      - Not currently utilized. This will eventually be utilized to pass an environment variable name which will hold JSON name value pair for customizing extra parameters. (There is a but with 100 char limitation for PCF control props even if its set to different type. Hence an environment variable will be used)
+- **imageViewerProps**      - Not currently utilized. This will eventually be utilized to pass an environment variable name which will hold JSON name value pair for customizing extra parameters. (There is a bug with 100 char limitation for PCF control props even if its set to different type. Hence an environment variable will be used)
 
 ## Setup
 Import PCF control using one of two ways
