@@ -30,7 +30,7 @@ Import PCF control using one of two ways
 1. Clone this project, [build](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/create-custom-controls-using-pcf) and deploy it locally using instructions from [MS Docs](https://learn.microsoft.com/en-us/power-apps/developer/component-framework/import-custom-controls) **OR** Import the provided [solution (Click download raw file)](Solutions/downloads/ImageViewerPCF_unmanaged.zip) directly in your Dynamics org
 2. Create a File Type field under the Entity that you want to utilize this ImageViewerPCF's functionality
 3. Create another placeholder field of type "single line of text". Its sole purpose is to host the pcf control in the Entity form
-4. For field created in step #4, set it up in the form section as desired (or in a new tab)
+4. For field created in step #3, set it up in the form section as desired (or in a new tab)
 ![alt text](assets/PlaceholderFieldSetup.png)
 5. For now the only required parameter is **placeholder** and **fileFieldName**. **placeholder** is tied to the text field hosting the pcf control. Make sure to hide the label for best results. **fileFieldName** is the File Type Field's logical name that you need to populate
 6. Save and Publish the form changes
